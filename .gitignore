@@ -1,0 +1,39 @@
+# Python-generated files
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual env
+.venv/
+venv/
+
+# UV
+uv.lock
+
+# Logs
+logs/
+*.log
+
+# Runtime mounts
+/mnt/
+/tmp/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Python build
+build/
+dist/
+*.egg-info/
+
+# Env
+.env
+
+# Cache
+.cache/
