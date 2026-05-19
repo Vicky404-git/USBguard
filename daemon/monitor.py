@@ -1,50 +1,78 @@
 import pyudev
-from rich.console import Console
-from rich.panel import Panel
 
-from core.mount import safe_mount
+from core.mount import safe_mount, unmount
+from core.browser import list_files
+from core.analyzer import analyze_files
+from core.scanner import scan_path
+from ui.tui import show_results, menu
+from core.sandbox import nuke_drive
 
-console = Console()
 
-context = pyudev.Context()
-monitor = pyudev.Monitor.from_netlink(context)
+def start_monitor():
+    context = pyudev.Context()
+    monitor = pyudev.Monitor.from_netlink(context)
 
-monitor.filter_by(subsystem="block")
+    monitor.filter_by(subsystem="block")
 
-console.print(
-    "[bold green]USBguard started... waiting for USB devices[/bold green]\n"
-)
-
-for device in iter(monitor.poll, None):
+    print("USBguard started")
 
     try:
-        if device.action == "add":
+        for device in iter(monitor.poll, None):
 
-            if device.device_type == "partition":
+            if device.device_type != "partition":
+                continue
 
-                if device.get("ID_BUS") == "usb":
+            if device.action != "add":
+                continue
 
-                    devnode = device.device_node
-                    size = device.get("ID_FS_SIZE", "Unknown")
-                    fs = device.get("ID_FS_TYPE", "Unknown")
-                    label = device.get("ID_FS_LABEL", "No Label")
+            devnode = device.device_node
 
-                    console.print(
-                        Panel.fit(
-                            f"[bold cyan]USB DETECTED[/bold cyan]\n\n"
-                            f"Device: {devnode}\n"
-                            f"Filesystem: {fs}\n"
-                            f"Label: {label}\n"
-                            f"Size: {size}",
-                            title="USBguard"
-                        )
-                    )
+            print(f"\nUSB detected: {devnode}")
 
-                    safe_mount(devnode)
+            sandbox_path = safe_mount(devnode)
+
+            if not sandbox_path:
+                continue
+
+            try:
+                files = list_files(sandbox_path)
+
+                results = analyze_files(files)
+
+                scan_path(sandbox_path)
+
+                show_results(results)
+
+                menu()
+
+                choice = input("\nChoice: ")
+
+                if choice == "1":
+                    for idx, file in enumerate(files):
+                        print(f"[{idx}] {file}")
+
+                    selected = input("\nSelect file index: ")
+                    try:
+                        selected_file = files[int(selected)]
+                        from core.opener import open_file
+                        open_file(str(selected_file))
+                    except Exception as e:
+                        print(f"Error: {e}")
+
+                elif choice == "2":
+                    print("Exiting USB session")
+                    # Unmount happens in the finally block
+
+                elif choice == "3":
+                    confirm = input(f"Are you sure you want to format {devnode}? (y/N): ")
+                    if confirm.lower() == 'y':
+                        nuke_drive(devnode)
+                        print("Drive wiped. Exiting session.")
+                    else:
+                        print("Format aborted.")
+
+            finally:
+                unmount()
 
     except KeyboardInterrupt:
-        console.print("\n[bold red]USBguard stopped[/bold red]")
-        break
-
-    except Exception as e:
-        console.print(f"[red]Error:[/red] {e}")
+        print("\nUSBguard stopped")

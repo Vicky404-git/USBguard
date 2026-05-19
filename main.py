@@ -1,6 +1,4 @@
-def main():
-    print("Hello from usbguard!")
-
+from daemon.monitor import start_monitor
 
 if __name__ == "__main__":
-    main()
+    start_monitor()

@@ -27,8 +27,11 @@ def safe_mount(device: str):
             f"{device} -> {MOUNT_DIR}"
         )
 
+        return MOUNT_DIR
+
     except subprocess.CalledProcessError as e:
         console.print(f"[red]Mount failed:[/red] {e}")
+        return None
 
 
 def unmount():
